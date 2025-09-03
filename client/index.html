@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CodeCollab - Live Editor</title>
+    
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+    
+    <!-- Dependencies -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- CodeMirror -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/theme/vibrant-ink.min.css">
+    
+    <link rel="stylesheet" href="style.css">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/mode/javascript/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/mode/python/python.min.js"></script>
+    
+    <!-- Socket.IO -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+
+</head>
+<body class="overflow-hidden">
+    <div class="flex flex-col h-screen">
+        <!-- Header -->
+        <header class="bg-[var(--surface)] border-b border-[var(--border)] p-3 shadow-md z-10 flex justify-between items-center">
+            <div class="flex items-center gap-4">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="code-2" class="text-[var(--primary)]"></i>
+                    <h1 class="text-xl font-bold">CodeCollab</h1>
+                </div>
+                <div class="flex items-center gap-2 text-sm bg-[var(--background)] px-2 py-1 rounded-md">
+                    <span class="text-[var(--text-secondary)]">ROOM:</span>
+                    <span id="roomIdDisplay" class="font-mono text-yellow-400"></span>
+                </div>
+            </div>
+            <!-- UPDATED HEADER -->
+            <div class="flex items-center gap-4">
+                <div id="status" class="text-sm font-semibold py-1 px-3 rounded-full flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-current"></span>
+                    <span id="status-text">DISCONNECTED</span>
+                </div>
+                 <button id="logout-button" class="flex items-center gap-2 text-sm text-[var(--text-secondary)] hover:text-red-400 transition-colors">
+                    <i data-lucide="log-out" class="w-4 h-4"></i>
+                    <span>Logout</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main content area -->
+        <div class="flex flex-grow overflow-hidden" id="main-container">
+            <!-- Left Panel: Editor and Output -->
+            <div id="left-panel" class="w-3/4 flex flex-col min-w-[300px]">
+                <main class="flex-grow h-3/5 relative">
+                    <textarea id="editor"></textarea>
+                </main>
+                <!-- Output Panel -->
+                <div class="h-2/5 flex flex-col border-t-2 border-[var(--border)]">
+                    <div class="flex justify-between items-center p-2 bg-[var(--surface)] border-b border-[var(--border)]">
+                        <div class="flex items-center gap-2 font-bold text-[var(--text-secondary)]">
+                            <i data-lucide="terminal" class="w-5 h-5"></i>
+                            <span>Output</span>
+                        </div>
+                        <div class="flex items-center gap-4">
+                             <select id="language-select" class="bg-[var(--background)] border border-[var(--border)] text-white rounded p-1 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]">
+                                <option value="71">Python</option>
+                                <option value="62">Java</option>
+                                <option value="63">JavaScript</option>
+                            </select>
+                            <button id="run-button" class="bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-4 rounded flex items-center gap-2 transition-colors duration-200 disabled:bg-gray-500">
+                                <i data-lucide="play" class="w-4 h-4"></i>
+                                <span>Run</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="output-box" class="flex-grow p-3 bg-[var(--background)] font-mono text-sm overflow-y-auto">
+                        Welcome! Select your language and click "Run" to see the output.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Resizable Handle -->
+            <div id="resizer" class="w-2 cursor-col-resize bg-[var(--surface)] hover:bg-[var(--primary)] transition-colors duration-200"></div>
+
+            <!-- Right Panel: Chat -->
+            <aside id="right-panel" class="w-1/4 bg-[var(--surface)] flex flex-col min-w-[250px]">
+                <div class="p-3 border-b border-[var(--border)] flex items-center gap-2 font-bold">
+                    <i data-lucide="messages-square" class="w-5 h-5"></i>
+                    <h2>Chat</h2>
+                </div>
+                <ul id="messages" class="flex-grow p-3 flex flex-col gap-3"></ul>
+                <form id="chat-form" class="p-3 border-t border-[var(--border)] flex gap-2">
+                    <input id="message-input" class="bg-[var(--background)] border border-[var(--border)] rounded-md p-2 flex-grow focus:outline-none focus:ring-2 focus:ring-[var(--primary)]" type="text" placeholder="Type a message..." autocomplete="off" required>
+                    <button type="submit" class="bg-[var(--primary)] hover:opacity-80 text-white font-bold p-2 rounded-md flex items-center justify-center">
+                        <i data-lucide="send" class="w-5 h-5"></i>
+                    </button>
+                </form>
+            </aside>
+        </div>
+    </div>
+
+    <script>
+        // AUTHENTICATION GUARD
+        // We will enable this redirect once the backend is ready.
+        // For now, it allows you to test the editor page directly.
+        if (!localStorage.getItem('authToken')) {
+             window.location.href = 'login.html';
+        }
+
+        lucide.createIcons();
+        
+        // LOGOUT BUTTON LOGIC
+        const logoutButton = document.getElementById('logout-button');
+        logoutButton.addEventListener('click', () => {
+            localStorage.removeItem('authToken');
+            window.location.href = 'login.html';
+        });
+
+        const urlParams = new URLSearchParams(window.location.search);
+        let roomId = urlParams.get('room');
+        if (!roomId) {
+            roomId = Math.random().toString(36).substring(2, 8);
+            window.location.href = window.location.pathname + `?room=${roomId}`;
+        }
+        document.getElementById('roomIdDisplay').textContent = roomId;
+
+        const socket = io('http://localhost:3001');
+        const statusDiv = document.getElementById('status');
+        const statusText = document.getElementById('status-text');
+        const languageSelect = document.getElementById('language-select');
+        const editor = CodeMirror.fromTextArea(document.getElementById('editor'), {
+            lineNumbers: true, mode: 'python', theme: 'vibrant-ink', autoCloseBrackets: true,
+        });
+        const chatForm = document.getElementById('chat-form');
+        const messageInput = document.getElementById('message-input');
+        const messagesList = document.getElementById('messages');
+        const runButton = document.getElementById('run-button');
+        const outputBox = document.getElementById('output-box');
+
+        let isUpdatingBySocket = false;
+
+        const resizer = document.getElementById('resizer');
+        const leftPanel = document.getElementById('left-panel');
+        let isResizing = false;
+
+        resizer.addEventListener('mousedown', (e) => {
+            isResizing = true;
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', () => {
+                isResizing = false;
+                document.removeEventListener('mousemove', handleMouseMove);
+            });
+        });
+
+        function handleMouseMove(e) {
+            if (!isResizing) return;
+            const totalWidth = document.getElementById('main-container').offsetWidth;
+            const newLeftWidth = e.clientX;
+            const newLeftWidthPercent = (newLeftWidth / totalWidth) * 100;
+            if (newLeftWidthPercent > 20 && newLeftWidthPercent < 80) {
+                leftPanel.style.width = `${newLeftWidthPercent}%`;
+            }
+        }
+        
+        languageSelect.addEventListener('change', () => {
+            const language = languageSelect.options[languageSelect.selectedIndex].text.toLowerCase();
+            editor.setOption("mode", language);
+        });
+        
+        socket.on('connect', () => {
+            statusText.textContent = 'CONNECTED';
+            statusDiv.classList.add('text-green-400');
+            statusDiv.classList.remove('text-red-400');
+            socket.emit('joinRoom', roomId);
+        });
+
+        socket.on('disconnect', () => {
+            statusText.textContent = 'DISCONNECTED';
+            statusDiv.classList.add('text-red-400');
+            statusDiv.classList.remove('text-green-400');
+        });
+        
+        socket.on('receiveMessage', (data) => {
+            appendMessage(data.user, data.message, false);
+        });
+
+        function appendMessage(user, message, isMe) {
+            const li = document.createElement('li');
+li.className = `w-fit flex flex-col chat-bubble ${isMe ? 'chat-bubble-me' : 'chat-bubble-other'}`;
+            const userSpan = document.createElement('span');
+            userSpan.className = 'text-xs font-bold';
+            userSpan.textContent = isMe ? 'You' : user;
+            const messageSpan = document.createElement('span');
+            messageSpan.textContent = message;
+            li.appendChild(userSpan);
+            li.appendChild(messageSpan);
+            messagesList.appendChild(li);
+            messagesList.scrollTop = messagesList.scrollHeight;
+        }
+
+        runButton.addEventListener('click', async () => {
+            const code = editor.getValue();
+            const languageId = languageSelect.value;
+            if (!code.trim()) { return; }
+            runButton.disabled = true;
+            runButton.querySelector('span').textContent = 'Executing...';
+            outputBox.textContent = 'Running...';
+            outputBox.classList.remove('text-red-500');
+            try {
+                const response = await fetch('http://localhost:3001/execute', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: code, languageId: languageId })
+                });
+                const result = await response.json();
+                if (result.stdout) {
+                    outputBox.textContent = result.stdout;
+                } else if (result.stderr) {
+                    outputBox.textContent = `Error:\n${result.stderr}`;
+                    outputBox.classList.add('text-red-500');
+                } else {
+                     outputBox.textContent = result.compile_output || "Execution finished with no output.";
+                }
+            } catch (error) {
+                outputBox.textContent = `An error occurred: ${error.message}`;
+                outputBox.classList.add('text-red-500');
+            } finally {
+                runButton.disabled = false;
+                runButton.querySelector('span').textContent = 'Run';
+            }
+        });
+
+        chatForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const message = messageInput.value;
+            if (message.trim()) {
+                socket.emit('sendMessage', message);
+                appendMessage('You', message, true);
+                messageInput.value = '';
+            }
+        });
+
+        editor.on('change', (instance) => {
+            if (!isUpdatingBySocket) {
+                socket.emit('codeChange', instance.getValue());
+            }
+        });
+
+        socket.on('codeUpdate', (code) => {
+            isUpdatingBySocket = true;
+            const pos = editor.getCursor();
+            editor.setValue(code);
+            editor.setCursor(pos);
+            isUpdatingBySocket = false;
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,49 @@
+/* Modern color palette and font */
+:root {
+    --background: #1a1b26;
+    --surface: #24283b;
+    --primary: #7aa2f7;
+    --text-main: #c0caf5;
+    --text-secondary: #a9b1d6;
+    --border: #414868;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: var(--background);
+    color: var(--text-main);
+}
+
+.CodeMirror {
+    height: 100% !important;
+    font-size: 16px;
+    background-color: var(--background);
+}
+
+#messages {
+    overflow-y: auto;
+}
+
+#output-box {
+    white-space: pre-wrap;
+}
+
+/* Chat bubble styling */
+.chat-bubble {
+    padding: 8px 12px;
+    border-radius: 18px;
+    max-width: 80%;
+}
+
+.chat-bubble-me {
+    background-color: var(--primary);
+    color: var(--background);
+    align-self: flex-end;
+    border-bottom-right-radius: 4px;
+}
+
+.chat-bubble-other {
+    background-color: var(--surface);
+    align-self: flex-start;
+    border-bottom-left-radius: 4px;
+}

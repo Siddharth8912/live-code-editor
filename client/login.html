@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CodeCollab - Login</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="overflow-hidden">
+    <div class="flex items-center justify-center h-screen bg-[var(--background)]">
+        <div class="w-full max-w-md p-8 space-y-8 bg-[var(--surface)] rounded-2xl shadow-lg border border-[var(--border)]">
+            <div class="text-center">
+                <div class="flex items-center justify-center gap-2 mb-4">
+                    <i data-lucide="code-2" class="text-[var(--primary)] w-8 h-8"></i>
+                    <h1 id="form-title" class="text-3xl font-bold">CodeCollab</h1>
+                </div>
+                <p id="form-subtitle" class="text-[var(--text-secondary)]">Sign in to your account to continue</p>
+            </div>
+            
+            <form id="auth-form" class="space-y-6">
+                <div>
+                    <label for="username" class="text-sm font-bold text-[var(--text-secondary)] block mb-2">Username</label>
+                    <div class="relative"><i data-lucide="user" class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--text-secondary)]"></i><input id="username" name="username" type="text" autocomplete="username" required class="w-full pl-10 pr-3 py-2 bg-[var(--background)] border border-[var(--border)] rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--primary)]" placeholder="e.g., siddharth"></div>
+                </div>
+                <div>
+                    <label for="password" class="text-sm font-bold text-[var(--text-secondary)] block mb-2">Password</label>
+                    <div class="relative"><i data-lucide="lock" class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--text-secondary)]"></i><input id="password" name="password" type="password" autocomplete="current-password" required class="w-full pl-10 pr-3 py-2 bg-[var(--background)] border border-[var(--border)] rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--primary)]" placeholder="••••••••"></div>
+                </div>
+                <div id="message-area" class="text-sm text-center min-h-[20px]"></div>
+                <div class="flex flex-col gap-4">
+                    <button id="main-action-btn" type="submit" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[var(--primary)] hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--primary)] focus:ring-offset-[var(--background)]">
+                        Sign In
+                    </button>
+                    <button id="secondary-action-btn" type="button" class="w-full flex justify-center py-2 px-4 border border-[var(--border)] rounded-md shadow-sm text-sm font-medium text-[var(--text-secondary)] bg-[var(--surface)] hover:bg-[var(--background)]">
+                        Register Instead
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <script>
+        lucide.createIcons();
+        const form = document.getElementById('auth-form');
+        const usernameInput = document.getElementById('username');
+        const passwordInput = document.getElementById('password');
+        const messageArea = document.getElementById('message-area');
+        const mainActionBtn = document.getElementById('main-action-btn');
+        const secondaryActionBtn = document.getElementById('secondary-action-btn');
+        const formTitle = document.getElementById('form-title');
+        const formSubtitle = document.getElementById('form-subtitle');
+        let isLoginMode = true;
+
+        secondaryActionBtn.addEventListener('click', () => {
+            isLoginMode = !isLoginMode;
+            updateFormUI();
+        });
+
+        function updateFormUI() {
+            if (isLoginMode) {
+                formTitle.textContent = "Welcome Back!";
+                formSubtitle.textContent = "Sign in to your account";
+                mainActionBtn.textContent = "Sign In";
+                secondaryActionBtn.textContent = "Don't have an account? Register";
+            } else {
+                formTitle.textContent = "Create an Account";
+                formSubtitle.textContent = "Register to start collaborating";
+                mainActionBtn.textContent = "Register";
+                secondaryActionBtn.textContent = "Already have an account? Sign In";
+            }
+            messageArea.textContent = '';
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = usernameInput.value;
+            const password = passwordInput.value;
+            const endpoint = isLoginMode ? '/api/auth/login' : '/api/auth/register';
+            try {
+                const response = await fetch(`http://localhost:3001${endpoint}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    if (isLoginMode) {
+                        localStorage.setItem('authToken', data.token);
+                        window.location.href = 'index.html';
+                    } else {
+                        messageArea.classList.remove('text-red-400');
+                        messageArea.classList.add('text-green-400');
+                        messageArea.textContent = data.message;
+                        setTimeout(() => {
+                            isLoginMode = true;
+                            updateFormUI();
+                        }, 2000);
+                    }
+                } else {
+                    messageArea.classList.add('text-red-400');
+                    messageArea.classList.remove('text-green-400');
+                    messageArea.textContent = data.message;
+                }
+            } catch (err) {
+                messageArea.classList.add('text-red-400');
+                messageArea.classList.remove('text-green-400');
+                messageArea.textContent = 'Could not connect to the server.';
+            }
+        });
+        updateFormUI();
+    </script>
+</body>
+</html>
